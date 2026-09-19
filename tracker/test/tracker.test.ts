@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeRecord } from "../src/tracker.ts";
+import { normalizeRecord, shouldUseMinomuncher } from "../src/tracker.ts";
 
 describe("TETR.IO record normalization", () => {
   test("extracts Irvinwop's side regardless of leaderboard order", () => {
@@ -54,5 +54,18 @@ describe("TETR.IO record normalization", () => {
       vs: 69.5,
       cursor: "10:0:0",
     });
+  });
+
+  test("only Tetra League records use MinoMuncher in auto mode", () => {
+    const config = {
+      replaySource: "auto" as const,
+      tetrioToken: undefined,
+      minomuncherUrl: "https://minomuncher.com",
+    };
+
+    expect(shouldUseMinomuncher({ stream: "league" }, config)).toBe(true);
+    expect(shouldUseMinomuncher({ stream: "40l" }, config)).toBe(false);
+    expect(shouldUseMinomuncher({ stream: "blitz" }, config)).toBe(false);
+    expect(shouldUseMinomuncher({ stream: "zenith" }, config)).toBe(false);
   });
 });

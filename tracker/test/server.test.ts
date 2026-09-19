@@ -125,4 +125,34 @@ describe("local TetraStats links", () => {
       database.close();
     }
   });
+
+  test("does not send known non-League replays to MinoMuncher", async () => {
+    const database = new TrackerDatabase(":memory:");
+    try {
+      database.upsertRecord({
+        id: "sprint-1",
+        replayId: "solo-replay",
+        stream: "40l",
+        playedAt: "2026-09-19T00:00:00.000Z",
+        mode: "40l",
+        stub: false,
+        rawJson: "{}",
+      });
+      let upstreamCalls = 0;
+
+      const response = await replayAnalysisResponse(
+        "solo-replay",
+        database,
+        async () => {
+          upstreamCalls += 1;
+          return {};
+        },
+      );
+
+      expect(response.status).toBe(422);
+      expect(upstreamCalls).toBe(0);
+    } finally {
+      database.close();
+    }
+  });
 });

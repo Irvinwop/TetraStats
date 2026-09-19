@@ -5,6 +5,7 @@ import { sleep, TetrioClient } from "./tetrio.ts";
 import {
   ReplayProcessingError,
   TetrioHttpError,
+  type PendingRecord,
   type StoredRecordInput,
   type TetrioPlayer,
   type TetrioRecord,
@@ -12,6 +13,21 @@ import {
 } from "./types.ts";
 
 type JsonObject = Record<string, unknown>;
+
+export function shouldUseMinomuncher(
+  record: Pick<PendingRecord, "stream">,
+  config: Pick<
+    TrackerConfig,
+    "replaySource" | "tetrioToken" | "minomuncherUrl"
+  >,
+): boolean {
+  return (
+    record.stream === "league" &&
+    config.replaySource === "auto" &&
+    !config.tetrioToken &&
+    Boolean(config.minomuncherUrl)
+  );
+}
 
 function numeric(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
@@ -268,10 +284,7 @@ export class IrvinTracker {
 
       for (const record of pending) {
         try {
-          const preferMinomuncher =
-            this.config.replaySource === "auto" &&
-            !this.config.tetrioToken &&
-            Boolean(this.config.minomuncherUrl);
+          const preferMinomuncher = shouldUseMinomuncher(record, this.config);
 
           if (preferMinomuncher) {
             const analysis = await this.client.getMinomuncherAnalysis(
@@ -305,7 +318,9 @@ export class IrvinTracker {
                 processed.playerAnalysis,
               );
             } catch (localError) {
-              if (!this.config.minomuncherUrl) throw localError;
+              if (record.stream !== "league" || !this.config.minomuncherUrl) {
+                throw localError;
+              }
               const analysis = await this.client.getMinomuncherAnalysis(
                 record.replayId,
               );

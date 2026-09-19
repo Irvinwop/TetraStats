@@ -108,6 +108,17 @@ export async function replayAnalysisResponse(
   database: TrackerDatabase,
   fetchAnalysis: (replayId: string) => Promise<Record<string, unknown>>,
 ): Promise<Response> {
+  const stream = database.getReplayStream(replayId);
+  if (stream && stream !== "league") {
+    return json(
+      {
+        error: "replay_analysis_wrong_stream",
+        message: `Replay ${replayId} belongs to ${stream}, not Tetra League`,
+      },
+      422,
+    );
+  }
+
   const cached = database.getReplayAnalysis(replayId);
   if (cached) return json(cached);
 

@@ -29,3 +29,8 @@ You can [download an app](https://github.com/dan63047/TetraStats/releases), or [
 Tetra Stats is not associated with TETR.IO or osk in any capacity.
 
 I do NOT own any assets located in `/res/*`, excluding app icon (`/res/icons/app.png`), localization (`/res/i18n/*`) and images (`/res/images/*`), which is distributed under GNU license (as well, as this software)
+
+## Local Irvinwop tracker
+
+This fork includes a continuously running local tracker and replay processor.
+See [LOCAL_TRACKER.md](LOCAL_TRACKER.md) for Docker and native Bun setup.

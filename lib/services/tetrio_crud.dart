@@ -40,6 +40,10 @@ import 'package:csv/csv.dart';
 
 const String dbName = "TetraStats.db";
 const String webVersionDomain = "ts.dan63.by";
+const String gameProcessorUrl = String.fromEnvironment(
+  "GAME_PROCESSOR_URL",
+  defaultValue: "http://127.0.0.1:8080/api/process-replay",
+);
 const String tetrioUsersTable = "tetrioUsers";
 const String tetrioUsersToTrackTable = "tetrioUsersToTrack";
 const String tetraLeagueMatchesTable = "tetrioAlphaLeagueMathces";
@@ -346,7 +350,7 @@ class TetrioService extends DB {
   Future<void> saveReplayStats(ReplayData replay) async {
     await ensureDbIsOpen();
     final db = getDatabaseOrThrow();
-    db.insert(tetrioTLReplayStatsTable,
+    await db.insert(tetrioTLReplayStatsTable,
         {idCol: replay.id, "data": jsonEncode(replay.toJson())});
   }
 
@@ -466,7 +470,7 @@ class TetrioService extends DB {
     String replay = (await szyGetReplay(replayID)).asString;
     Map<String, dynamic> toAnalyze = jsonDecode(replay);
     ReplayData data = ReplayData.fromJson(toAnalyze);
-    saveReplayStats(data); // saving to DB for later
+    await saveReplayStats(data); // saving to DB for later
     return data;
   }
 
@@ -499,53 +503,91 @@ class TetrioService extends DB {
     List<MinomuncherRaw>? cached = _cache.get(replay.id, List<MinomuncherRaw>);
     if (cached != null) return cached;
 
-    Uri url = Uri.https(
+    final localUrl = kIsWeb
+        ? Uri.base.resolve('/api/process-replay')
+        : Uri.parse(gameProcessorUrl);
+    final remoteUrl = Uri.https(
         webVersionDomain, 'oskware_bridge.php', {"endpoint": "Minomuncher"});
-    try {
-      final response = await client.post(url,
-          headers: <String, String>{
-            'Content-Type': 'application/json; charset=UTF-8',
-          },
-          body: replay.asBytes);
-      switch (response.statusCode) {
-        // TODO: replays with zero rounds are doing something bad to minomuncher
-        case 200:
-          if (response.contentLength! > 0) {
-            Map<String, dynamic> json = jsonDecode(response.body);
+    final endpoints = <Uri>[localUrl, if (localUrl != remoteUrl) remoteUrl];
+    Object? lastError;
+
+    for (int endpointIndex = 0;
+        endpointIndex < endpoints.length;
+        endpointIndex++) {
+      final url = endpoints[endpointIndex];
+      final isLastEndpoint = endpointIndex == endpoints.length - 1;
+      try {
+        final response = await client.post(url,
+            headers: <String, String>{
+              'Content-Type': 'application/json; charset=UTF-8',
+            },
+            body: replay.asBytes);
+        switch (response.statusCode) {
+          case 200:
+            if (response.body.trim().isEmpty) {
+              throw const ReplayNotProcessable(
+                  "Game processor returned an empty response");
+            }
+            final decoded = jsonDecode(response.body);
+            if (decoded is! Map<String, dynamic> || decoded.isEmpty) {
+              throw const ReplayNotProcessable(
+                  "Game processor returned no player statistics");
+            }
             List<MinomuncherRaw> result = [
-              for (MapEntry<String, dynamic> e in json.entries)
+              for (MapEntry<String, dynamic> e in decoded.entries)
                 MinomuncherRaw.fromJson(e)
             ];
             _cache.store(result, 9999999999999, id: replay.id);
-            developer
-                .log("fetchMinoMuncherStats: replay ${replay.id} was munched");
+            developer.log(
+                "fetchMinoMuncherStats: replay ${replay.id} was munched by $url");
             return result;
-          } else {
-            developer.log("fetchSingleplayerStream: User dosen't exist",
-                name: "services/tetrio_crud", error: response.body);
-            throw TetrioPlayerNotExist();
-          }
-        case 403:
-          throw TetrioForbidden();
-        case 429:
-          throw TetrioTooManyRequests();
-        case 418:
-          throw TetrioOskwareBridgeProblem();
-        case 500:
-        case 502:
-        case 503:
-        case 504:
-          throw TetrioInternalProblem();
-        default:
-          developer.log("fetchMinoMuncherStats: $response",
-              name: "services/tetrio_crud", error: response.statusCode);
-          throw ConnectionIssue(
-              response.statusCode, response.reasonPhrase ?? "No reason");
+          case 404:
+            if (!isLastEndpoint) {
+              lastError = ConnectionIssue(
+                  response.statusCode, response.reasonPhrase ?? "Not found");
+              continue;
+            }
+            throw ConnectionIssue(
+                response.statusCode, response.reasonPhrase ?? "Not found");
+          case 400:
+          case 422:
+            throw ReplayNotProcessable(response.body.isEmpty
+                ? "Replay is not supported by the game processor"
+                : response.body);
+          case 403:
+            throw TetrioForbidden();
+          case 429:
+            throw TetrioTooManyRequests();
+          case 418:
+            throw TetrioOskwareBridgeProblem();
+          case 500:
+          case 502:
+          case 503:
+          case 504:
+            if (!isLastEndpoint) {
+              lastError = TetrioInternalProblem();
+              continue;
+            }
+            throw TetrioInternalProblem();
+          default:
+            developer.log("fetchMinoMuncherStats: $response",
+                name: "services/tetrio_crud", error: response.statusCode);
+            throw ConnectionIssue(
+                response.statusCode, response.reasonPhrase ?? "No reason");
+        }
+      } on http.ClientException catch (e, s) {
+        developer.log("$e, $s");
+        lastError = http.ClientException(e.message, e.uri);
+        if (isLastEndpoint) throw lastError!;
+      } on FormatException catch (e, s) {
+        developer.log("$e, $s");
+        lastError = const ReplayNotProcessable(
+            "Game processor returned malformed JSON");
+        if (isLastEndpoint) throw lastError!;
       }
-    } on http.ClientException catch (e, s) {
-      developer.log("$e, $s");
-      throw http.ClientException(e.message, e.uri);
     }
+    throw lastError ??
+        const ReplayNotProcessable("No game processor endpoint was available");
   }
 
   Stream<MultipleMunchProgress> minomuncherMunchByMultipleIDStream(
@@ -563,7 +605,8 @@ class TetrioService extends DB {
       for (int i = 0; i < id.length; i++) {
         TetraLeagueBetaStream stream = await fetchTLStream(id[i]);
         List<BetaRecord> a = stream.records;
-        a.removeWhere((element) => element.stub);
+        a.removeWhere(
+            (element) => element.stub || element.results.rounds.isEmpty);
         if (a.isEmpty) continue;
         a = a.take(10).toList();
         avaliable.add(a);
@@ -576,7 +619,7 @@ class TetrioService extends DB {
         List<MinomuncherRaw> munched = [];
         for (BetaRecord record in avaliable[i]) {
           List<MinomuncherRaw>? cached =
-              _cache.get(record.id, List<MinomuncherRaw>);
+              _cache.get(record.replayID, List<MinomuncherRaw>);
           if (cached != null) {
             munched.add(cached.firstWhere((element) => element.id == id[i]));
           } else {
@@ -615,7 +658,7 @@ class TetrioService extends DB {
       yield progress;
       for (BetaRecord record in progress.avaliable) {
         List<MinomuncherRaw>? cached =
-            _cache.get(record.id, List<MinomuncherRaw>);
+            _cache.get(record.replayID, List<MinomuncherRaw>);
         if (cached != null) {
           progress.munched
               .add(cached.firstWhere((element) => element.id == id));

@@ -66,7 +66,7 @@ class Garbage{ // charsys where???
   }
 
   Garbage operator + (Garbage other){
-    return Garbage(sent: sent + other.sent, recived: recived + other.recived, attack: attack??0 + (other.attack??0), cleared: (cleared??0) + (other.cleared??0));
+    return Garbage(sent: sent + other.sent, recived: recived + other.recived, attack: (attack??0) + (other.attack??0), cleared: (cleared??0) + (other.cleared??0));
   }
 }
 
@@ -266,8 +266,8 @@ class ReplayData{
     data['endcontext'] = [endcontext[0].toJson(), endcontext[1].toJson()];
     data['data'] = [];
     for(var round in rawJson['data']) {
-      List<dynamic> eventsPlayerOne = round['replays'][0]['events'];
-      List<dynamic> eventsPlayerTwo = round['replays'][1]['events'];
+      List<dynamic> eventsPlayerOne = List<dynamic>.from(round['replays'][0]['events']);
+      List<dynamic> eventsPlayerTwo = List<dynamic>.from(round['replays'][1]['events']);
       eventsPlayerOne.removeWhere((v) => (v['type'] == 'ige' && v['data']['data']['type'] != 'interaction') || (v['type'] != 'end' && v['type'] != 'ige'));
       eventsPlayerTwo.removeWhere((v) => (v['type'] == 'ige' && v['data']['data']['type'] != 'interaction') || (v['type'] != 'end' && v['type'] != 'ige'));
       data['data'].add({'board': round['board'], 'replays': [

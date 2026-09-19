@@ -206,6 +206,7 @@ class MinomuncherRaw {
     DeathData? d,
     DeathData? k
   }){
+    id = i??"";
     nick = n??"Nill";
     placement = p??MPlacement();
     garbage = g??MGarbage();
@@ -281,6 +282,7 @@ class MinomuncherRaw {
 
   MinomuncherRaw operator+(MinomuncherRaw other){
     return MinomuncherRaw(
+      i: id.isNotEmpty ? id : other.id,
       n: nick,
       p: placement+other.placement,
       g: garbage+other.garbage,
@@ -411,6 +413,7 @@ class MinomuncherData {
     }
 
     MinomuncherData.fromRaw(MinomuncherRaw raw){
+      this.id = raw.id;
       this.nick = raw.nick;
       double secs = raw.placement.frameDelay / 60;
       double mins = secs / 60;

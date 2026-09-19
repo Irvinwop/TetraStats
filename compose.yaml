@@ -1,0 +1,32 @@
+services:
+  irvinwop-tracker:
+    build:
+      context: ./tracker
+    container_name: irvinwop-tetrastats
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TRACK_USERNAME: ${TRACK_USERNAME:-Irvinwop}
+      TRACK_PLAYER_ID: ${TRACK_PLAYER_ID:-678656e79f48dae00cefd822}
+      TRACK_STREAMS: ${TRACK_STREAMS:-league,40l,blitz,zenith,zenithex}
+      POLL_INTERVAL_MS: ${POLL_INTERVAL_MS:-300000}
+      BACKFILL_MAX_PAGES: ${BACKFILL_MAX_PAGES:-100}
+      PROCESS_BATCH_SIZE: ${PROCESS_BATCH_SIZE:-25}
+      REPLAY_SOURCE: ${REPLAY_SOURCE:-auto}
+      TETRIO_TOKEN: ${TETRIO_TOKEN:-}
+      MINOMUNCHER_URL: ${MINOMUNCHER_URL:-https://minomuncher.com}
+      TRACKER_HOST: 0.0.0.0
+      PORT: 8080
+      DATA_DIR: /app/data
+    ports:
+      - "127.0.0.1:${PORT:-8080}:8080"
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

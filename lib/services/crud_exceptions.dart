@@ -46,6 +46,15 @@ class SzyNotFound implements Exception {}
 
 class ReplayNotAvalable implements Exception {}
 
+class ReplayNotProcessable implements Exception {
+  const ReplayNotProcessable(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'ReplayNotProcessable: $message';
+}
+
 class TetrioReplayAlreadyExist implements Exception {}
 
 class P1nkl0bst3rInternalProblem implements Exception {}

@@ -46,3 +46,9 @@ app.*.map.json
 # My shit
 lib/views/tl_match_view web.dart
 web/indexbeta.html
+
+# Local tracker state and credentials
+.env
+data/
+tracker/data/
+tracker/node_modules/

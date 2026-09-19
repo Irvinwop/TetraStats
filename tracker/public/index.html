@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Irvinwop TetraStats Tracker</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Local replay intelligence</p>
+          <h1 id="player-name">Irvinwop</h1>
+          <p id="subtitle">Loading tracked TETR.IO history…</p>
+        </div>
+        <button id="sync-button" type="button">Sync now</button>
+      </header>
+
+      <section id="notice" class="notice" hidden></section>
+
+      <section class="cards" aria-label="Summary statistics">
+        <article><span>Stored games</span><strong id="total-games">—</strong></article>
+        <article><span>Win rate</span><strong id="win-rate">—</strong></article>
+        <article><span>Average APM</span><strong id="average-apm">—</strong></article>
+        <article><span>Average PPS</span><strong id="average-pps">—</strong></article>
+        <article><span>Average VS</span><strong id="average-vs">—</strong></article>
+        <article><span>Replays analyzed</span><strong id="analyzed-games">—</strong></article>
+      </section>
+
+      <section class="panel deep-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Replay-derived totals</p>
+            <h2>Deep analysis</h2>
+          </div>
+          <span id="tracker-phase" class="status-pill">idle</span>
+        </div>
+        <div class="deep-grid">
+          <div><span>Pieces</span><strong id="deep-pieces">—</strong></div>
+          <div><span>Attack</span><strong id="deep-attack">—</strong></div>
+          <div><span>Lines cleared</span><strong id="deep-lines">—</strong></div>
+          <div><span>Keys / piece</span><strong id="deep-kpp">—</strong></div>
+          <div><span>Attack / piece</span><strong id="deep-app">—</strong></div>
+          <div><span>Deep PPS</span><strong id="deep-pps">—</strong></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Continuously updated</p>
+            <h2>Recent games</h2>
+          </div>
+          <p id="last-sync">Not synced yet</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Played</th>
+                <th>Mode</th>
+                <th>Opponent</th>
+                <th>Result</th>
+                <th>APM</th>
+                <th>PPS</th>
+                <th>VS</th>
+                <th>Replay</th>
+              </tr>
+            </thead>
+            <tbody id="games-body">
+              <tr><td colspan="8">Loading games…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

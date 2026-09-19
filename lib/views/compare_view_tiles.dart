@@ -17,6 +17,7 @@ import 'package:tetra_stats/data_objects/tetrio_zen.dart';
 import 'package:tetra_stats/gen/strings.g.dart';
 import 'package:tetra_stats/main.dart' show teto;
 import 'package:tetra_stats/services/crud_exceptions.dart';
+import 'package:tetra_stats/utils/internal_links.dart';
 import 'package:tetra_stats/utils/numers_formats.dart';
 import 'package:tetra_stats/utils/relative_timestamps.dart';
 import 'package:tetra_stats/utils/text_shadow.dart';
@@ -1088,7 +1089,16 @@ class HeaderCard extends StatelessWidget{
               alignment: Alignment.topCenter,
               clipBehavior: Clip.none,
               children: [
-                if (player.bannerRevision != null) FadeInImage.memoryNetwork(image: kIsWeb ? "https://ts.dan63.by/oskware_bridge.php?endpoint=TetrioBanner&user=${player.userId}&rv=${player.bannerRevision}" : "https://tetr.io/user-content/banners/${player.userId}.jpg?rv=${player.bannerRevision}",
+                if (player.bannerRevision != null) FadeInImage.memoryNetwork(image: kIsWeb
+                    ? tetraStatsUrl(
+                        'oskware_bridge.php',
+                        queryParameters: {
+                          'endpoint': 'TetrioBanner',
+                          'user': player.userId,
+                          'rv': player.bannerRevision.toString(),
+                        },
+                      )
+                    : "https://tetr.io/user-content/banners/${player.userId}.jpg?rv=${player.bannerRevision}",
                   placeholder: kTransparentImage,
                   fit: BoxFit.cover,
                   height: 120.0,
@@ -1102,7 +1112,16 @@ class HeaderCard extends StatelessWidget{
                     child: player.role == "banned"
                       ? Image.asset("res/avatars/tetrio_banned.png", fit: BoxFit.fitHeight, height: 128)
                       : player.avatarRevision != null
-                        ? FadeInImage.memoryNetwork(image: kIsWeb ? "https://ts.dan63.by/oskware_bridge.php?endpoint=TetrioProfilePicture&user=${player.userId}&rv=${player.avatarRevision}" : "https://tetr.io/user-content/avatars/${player.userId}.jpg?rv=${player.avatarRevision}",
+                        ? FadeInImage.memoryNetwork(image: kIsWeb
+                            ? tetraStatsUrl(
+                                'oskware_bridge.php',
+                                queryParameters: {
+                                  'endpoint': 'TetrioProfilePicture',
+                                  'user': player.userId,
+                                  'rv': player.avatarRevision.toString(),
+                                },
+                              )
+                            : "https://tetr.io/user-content/avatars/${player.userId}.jpg?rv=${player.avatarRevision}",
                           fit: BoxFit.fitHeight, height: 128, placeholder: kTransparentImage, fadeInCurve: Easing.emphasizedDecelerate, fadeInDuration: Durations.long4)
                         : Image.asset("res/avatars/tetrio_anon.png", fit: BoxFit.fitHeight, height: 128),
                   )

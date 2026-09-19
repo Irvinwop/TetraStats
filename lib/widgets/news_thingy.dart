@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:tetra_stats/data_objects/news.dart';
 import 'package:tetra_stats/data_objects/news_entry.dart';
 import 'package:tetra_stats/gen/strings.g.dart';
-import 'package:tetra_stats/services/tetrio_crud.dart' show webVersionDomain;
+import 'package:tetra_stats/utils/internal_links.dart';
 import 'package:tetra_stats/utils/numers_formats.dart';
 import 'package:tetra_stats/utils/relative_timestamps.dart';
 import 'package:tetra_stats/widgets/text_timestamp.dart';
@@ -76,7 +76,15 @@ class NewsThingy extends StatelessWidget{
           ),
           subtitle: Text(timestamp(news.timestamp)),
           leading: Image.network(
-            kIsWeb ? "https://${webVersionDomain}/oskware_bridge.php?endpoint=TetrioBadge&badge=${news.data["type"]}" : "https://tetr.io/res/badges/${news.data["type"]}.png",
+            kIsWeb
+                ? tetraStatsUrl(
+                    'oskware_bridge.php',
+                    queryParameters: {
+                      'endpoint': 'TetrioBadge',
+                      'badge': news.data['type'].toString(),
+                    },
+                  )
+                : "https://tetr.io/res/badges/${news.data["type"]}.png",
             height: 48,
             width: 48,
             errorBuilder:(context, error, stackTrace) {

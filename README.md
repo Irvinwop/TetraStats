@@ -4,7 +4,7 @@ Track your and other players stats in TETR.IO
 
 Tetra Stats works with TETR.IO Tetra Channel API, providing data from it and calculating some addtitional metrics, based on this data.
 
-You can [download an app](https://github.com/dan63047/TetraStats/releases), or [use web version](https://ts.dan63.by).
+You can [download an app](https://github.com/Irvinwop/TetraStats/releases), or run the personalized web version locally at <http://127.0.0.1:8080>.
 
 ![Screenshot of the app 1](https://i.imgur.com/3nqyNcR.png)
 

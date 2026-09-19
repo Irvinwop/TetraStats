@@ -19,6 +19,10 @@ directly on `Irvinwop`. The background service performs an initial paginated
 backfill, polls every five minutes, deduplicates records, and keeps retrying
 replays that fail temporarily.
 
+The web build keeps TetraStats-owned API, image, and data links on the local
+origin. The tracker proxies the legacy bridge and beanserver routes upstream,
+so browser navigation and requests stay under `127.0.0.1:8080`.
+
 ### Docker
 
 Build the Flutter interface before building the container:

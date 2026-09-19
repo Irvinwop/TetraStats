@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:tetra_stats/gen/strings.g.dart';
 import 'package:tetra_stats/main.dart';
+import 'package:tetra_stats/utils/internal_links.dart';
 import 'package:tetra_stats/utils/open_in_browser.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -110,9 +111,9 @@ class AboutState extends State<AboutView> {
                 )),
                 AboutCard(t.aboutView.appVersion, packageInfo.version, t.aboutView.build(build: packageInfo.buildNumber), [
                   TextSpan(text: "${packageInfo.appName} (${packageInfo.packageName}) • "),
-                  TextSpan(text: t.aboutView.GHrepo, style: TextStyle(decoration: TextDecoration.underline, decorationColor: Colors.white70, decorationStyle: TextDecorationStyle.dotted, color: Theme.of(context).colorScheme.primary), recognizer: TapGestureRecognizer()..onTap = (){launchInBrowser(Uri.https("github.com", "dan63047/TetraStats"));}),
+                  TextSpan(text: t.aboutView.GHrepo, style: TextStyle(decoration: TextDecoration.underline, decorationColor: Colors.white70, decorationStyle: TextDecorationStyle.dotted, color: Theme.of(context).colorScheme.primary), recognizer: TapGestureRecognizer()..onTap = (){launchInBrowser(tetraStatsRepositoryUri());}),
                   TextSpan(text: " • "),
-                  TextSpan(text: t.aboutView.submitAnIssue, style: TextStyle(decoration: TextDecoration.underline, decorationColor: Colors.white70, decorationStyle: TextDecorationStyle.dotted, color: Theme.of(context).colorScheme.primary), recognizer: TapGestureRecognizer()..onTap = (){launchInBrowser(Uri.https("github.com", "dan63047/TetraStats/issues/new/choose"));}),
+                  TextSpan(text: t.aboutView.submitAnIssue, style: TextStyle(decoration: TextDecoration.underline, decorationColor: Colors.white70, decorationStyle: TextDecorationStyle.dotted, color: Theme.of(context).colorScheme.primary), recognizer: TapGestureRecognizer()..onTap = (){launchInBrowser(tetraStatsRepositoryUri('issues/new/choose'));}),
                 ]),
                 Card(child: Center(child: Padding(
                   padding: const EdgeInsets.fromLTRB(0.0, 6.0, 0.0, 18.0),

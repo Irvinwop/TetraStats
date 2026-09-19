@@ -9,6 +9,12 @@ const publicDirectory = resolve(
   Bun.env.WEB_ROOT?.trim() ||
     join(import.meta.dir, "..", "..", "build", "web"),
 );
+const defaultFirstPartyUpstreamOrigin = "https://ts.dan63.by";
+
+type FetchLike = (
+  input: string | URL | Request,
+  init?: RequestInit,
+) => Promise<Response>;
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, {
@@ -24,6 +30,77 @@ function numberParam(value: string | null, fallback: number, max: number): numbe
   if (!value) return fallback;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) ? Math.min(max, Math.max(0, parsed)) : fallback;
+}
+
+export function isFirstPartyProxyPath(pathname: string): boolean {
+  return (
+    pathname === "/oskware_bridge.php" ||
+    pathname.startsWith("/beanserver_blaster/")
+  );
+}
+
+export function resolveFirstPartyUpstreamUrl(
+  requestUrl: URL,
+  upstreamOrigin =
+    Bun.env.TETRASTATS_UPSTREAM_ORIGIN?.trim() ||
+    defaultFirstPartyUpstreamOrigin,
+): URL {
+  return new URL(`${requestUrl.pathname}${requestUrl.search}`, upstreamOrigin);
+}
+
+export async function proxyFirstPartyRequest(
+  request: Request,
+  requestUrl: URL,
+  fetcher: FetchLike = fetch,
+  upstreamOrigin?: string,
+): Promise<Response> {
+  const method = request.method.toUpperCase();
+  const requestHeaders = new Headers();
+  for (const name of ["accept", "content-type"]) {
+    const value = request.headers.get(name);
+    if (value) requestHeaders.set(name, value);
+  }
+
+  try {
+    const upstreamResponse = await fetcher(
+      resolveFirstPartyUpstreamUrl(requestUrl, upstreamOrigin),
+      {
+        method,
+        headers: requestHeaders,
+        body:
+          method === "GET" || method === "HEAD"
+            ? undefined
+            : await request.arrayBuffer(),
+      },
+    );
+    const responseHeaders = new Headers({
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": "no-store",
+    });
+    for (const name of [
+      "cache-control",
+      "content-disposition",
+      "content-type",
+      "etag",
+      "last-modified",
+    ]) {
+      const value = upstreamResponse.headers.get(name);
+      if (value) responseHeaders.set(name, value);
+    }
+    return new Response(method === "HEAD" ? null : upstreamResponse.body, {
+      status: upstreamResponse.status,
+      statusText: upstreamResponse.statusText,
+      headers: responseHeaders,
+    });
+  } catch (error) {
+    return json(
+      {
+        error: "upstream_unavailable",
+        message: error instanceof Error ? error.message : String(error),
+      },
+      502,
+    );
+  }
 }
 
 function contentType(path: string): string {
@@ -81,6 +158,13 @@ export function startServer(
             "Access-Control-Allow-Headers": "Content-Type",
           },
         });
+      }
+
+      if (isFirstPartyProxyPath(url.pathname)) {
+        if (!["GET", "HEAD", "POST"].includes(request.method)) {
+          return json({ error: "method_not_allowed" }, 405);
+        }
+        return await proxyFirstPartyRequest(request, url);
       }
 
       if (url.pathname === "/api/health" && request.method === "GET") {

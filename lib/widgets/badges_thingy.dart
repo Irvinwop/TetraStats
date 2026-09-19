@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' hide Badge;
 import 'package:tetra_stats/data_objects/badge.dart';
 import 'package:tetra_stats/gen/strings.g.dart';
-import 'package:tetra_stats/services/tetrio_crud.dart' show webVersionDomain;
+import 'package:tetra_stats/utils/internal_links.dart';
 import 'package:tetra_stats/utils/numers_formats.dart';
 import 'package:tetra_stats/widgets/text_timestamp.dart';
 
@@ -47,7 +47,15 @@ class BadgesThingy extends StatelessWidget{
                                 spacing: 25,
                                 children: [
                                   Image.network(
-                                    kIsWeb ? "https://${webVersionDomain}/oskware_bridge.php?endpoint=TetrioBadge&badge=${badge.badgeId}" : "https://tetr.io/res/badges/${badge.badgeId}.png",
+                                    kIsWeb
+                                        ? tetraStatsUrl(
+                                            'oskware_bridge.php',
+                                            queryParameters: {
+                                              'endpoint': 'TetrioBadge',
+                                              'badge': badge.badgeId,
+                                            },
+                                          )
+                                        : "https://tetr.io/res/badges/${badge.badgeId}.png",
                                     errorBuilder:(context, error, stackTrace) {
                                       return ErrorWidget(error);
                                     }
@@ -73,7 +81,15 @@ class BadgesThingy extends StatelessWidget{
                     ),
                   tooltip: badge.label,
                   icon: Image.network(
-                    kIsWeb ? "https://${webVersionDomain}/oskware_bridge.php?endpoint=TetrioBadge&badge=${badge.badgeId}" : "https://tetr.io/res/badges/${badge.badgeId}.png",
+                    kIsWeb
+                        ? tetraStatsUrl(
+                            'oskware_bridge.php',
+                            queryParameters: {
+                              'endpoint': 'TetrioBadge',
+                              'badge': badge.badgeId,
+                            },
+                          )
+                        : "https://tetr.io/res/badges/${badge.badgeId}.png",
                     height: 32,
                     errorBuilder:(context, error, stackTrace) {
                       return Image.asset("res/icons/kagari.png", height: 32, width: 32);

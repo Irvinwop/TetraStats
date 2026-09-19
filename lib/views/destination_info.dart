@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:tetra_stats/data_objects/tetrio_constants.dart';
 import 'package:tetra_stats/gen/strings.g.dart';
+import 'package:tetra_stats/utils/internal_links.dart';
 import 'package:tetra_stats/utils/open_in_browser.dart';
 import 'package:tetra_stats/views/about_view.dart';
 import 'package:tetra_stats/views/sprint_and_blitz_averages.dart';
@@ -74,7 +75,7 @@ class _DestinationInfo extends State<DestinationInfo> {
         title: t.infoDestination.tetraStatsWiki,
         description: t.infoDestination.tetraStatsWikiDescription,
         onPressed: (){
-          launchInBrowser(Uri.https("github.com", "dan63047/TetraStats/wiki"));
+          launchInBrowser(tetraStatsRepositoryUri('wiki'));
         }
       ),
       InfoCard(

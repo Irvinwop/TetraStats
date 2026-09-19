@@ -500,6 +500,79 @@ class TetrioService extends DB {
 
   /// Minomuncher endpoint, that munches `replay`
   /// returns munch results for both players in replay
+  List<MinomuncherRaw> _decodeMinomuncherResponse(String body) {
+    if (body.trim().isEmpty) {
+      throw const ReplayNotProcessable(
+          "Game processor returned an empty response");
+    }
+    final decoded = jsonDecode(body);
+    if (decoded is! Map<String, dynamic> || decoded.isEmpty) {
+      throw const ReplayNotProcessable(
+          "Game processor returned no player statistics");
+    }
+    return [
+      for (MapEntry<String, dynamic> entry in decoded.entries)
+        MinomuncherRaw.fromJson(entry)
+    ];
+  }
+
+  MinomuncherRaw? _findMinomuncherPlayer(
+      List<MinomuncherRaw> analyses, String playerId) {
+    for (final analysis in analyses) {
+      if (analysis.id == playerId) return analysis;
+    }
+    return null;
+  }
+
+  Future<List<MinomuncherRaw>> minomuncherReplayById(
+      String replayId) async {
+    List<MinomuncherRaw>? cached =
+        _cache.get(replayId, List<MinomuncherRaw>);
+    if (cached != null) return cached;
+
+    if (!kIsWeb) {
+      return minomuncherPostReplay(await szyGetReplay(replayId));
+    }
+
+    final url = Uri.base.resolve(
+        '/api/replay-analysis/${Uri.encodeComponent(replayId)}');
+    try {
+      final response = await client.get(url);
+      switch (response.statusCode) {
+        case 200:
+          final result = _decodeMinomuncherResponse(response.body);
+          _cache.store(result, 9999999999999, id: replayId);
+          return result;
+        case 400:
+        case 422:
+          throw ReplayNotProcessable(response.body.isEmpty
+              ? "Replay is not supported by the game processor"
+              : response.body);
+        case 404:
+          throw SzyNotFound();
+        case 403:
+          throw TetrioForbidden();
+        case 429:
+          throw TetrioTooManyRequests();
+        case 500:
+        case 502:
+        case 503:
+        case 504:
+          throw TetrioInternalProblem();
+        default:
+          throw ConnectionIssue(
+              response.statusCode, response.reasonPhrase ?? "No reason");
+      }
+    } on FormatException catch (e, s) {
+      developer.log("$e, $s");
+      throw const ReplayNotProcessable(
+          "Game processor returned malformed JSON");
+    } on http.ClientException catch (e, s) {
+      developer.log("$e, $s");
+      throw http.ClientException(e.message, e.uri);
+    }
+  }
+
   Future<List<MinomuncherRaw>> minomuncherPostReplay(RawReplay replay,
       {String? id}) async {
     List<MinomuncherRaw>? cached = _cache.get(replay.id, List<MinomuncherRaw>);
@@ -526,19 +599,8 @@ class TetrioService extends DB {
             body: replay.asBytes);
         switch (response.statusCode) {
           case 200:
-            if (response.body.trim().isEmpty) {
-              throw const ReplayNotProcessable(
-                  "Game processor returned an empty response");
-            }
-            final decoded = jsonDecode(response.body);
-            if (decoded is! Map<String, dynamic> || decoded.isEmpty) {
-              throw const ReplayNotProcessable(
-                  "Game processor returned no player statistics");
-            }
-            List<MinomuncherRaw> result = [
-              for (MapEntry<String, dynamic> e in decoded.entries)
-                MinomuncherRaw.fromJson(e)
-            ];
+            List<MinomuncherRaw> result =
+                _decodeMinomuncherResponse(response.body);
             _cache.store(result, 9999999999999, id: replay.id);
             developer.log(
                 "fetchMinoMuncherStats: replay ${replay.id} was munched by $url");
@@ -603,38 +665,44 @@ class TetrioService extends DB {
       yield progress;
     } else {
       progress.result = [];
-      List<List<BetaRecord>> avaliable = [];
-      for (int i = 0; i < id.length; i++) {
-        TetraLeagueBetaStream stream = await fetchTLStream(id[i]);
+      List<(String, List<BetaRecord>)> avaliable = [];
+      for (final playerId in id) {
+        TetraLeagueBetaStream stream = await fetchTLStream(playerId);
         List<BetaRecord> a = stream.records;
         a.removeWhere(
             (element) => element.stub || element.results.rounds.isEmpty);
         if (a.isEmpty) continue;
         a = a.take(10).toList();
-        avaliable.add(a);
+        avaliable.add((playerId, a));
         progress.avaliable += a.length;
         yield progress;
       }
       if ((avaliable.isEmpty && id.length == 1) ||
           (avaliable.length < 2 && id.length >= 2)) throw TetrioNoReplays();
-      for (int i = 0; i < avaliable.length; i++) {
+      for (final (playerId, records) in avaliable) {
         List<MinomuncherRaw> munched = [];
-        for (BetaRecord record in avaliable[i]) {
-          List<MinomuncherRaw>? cached =
-              _cache.get(record.replayID, List<MinomuncherRaw>);
-          if (cached != null) {
-            munched.add(cached.firstWhere((element) => element.id == id[i]));
-          } else {
-            List<MinomuncherRaw> raw = await minomuncherPostReplay(
-                await szyGetReplay(record.replayID));
-            munched.add(raw.firstWhere((element) => element.id == id[i]));
+        for (BetaRecord record in records) {
+          try {
+            final raw = await minomuncherReplayById(record.replayID);
+            final player = _findMinomuncherPlayer(raw, playerId);
+            if (player == null) continue;
+            munched.add(player);
+            progress.munched++;
+          } on Exception catch (e, s) {
+            developer.log(
+                "Skipping unavailable replay ${record.replayID}: $e",
+                name: "services/tetrio_crud",
+                error: e,
+                stackTrace: s);
           }
-          progress.munched++;
           yield progress;
         }
-        progress.result!.add(munched.reduce((a, b) => a + b).data);
+        if (munched.isNotEmpty) {
+          progress.result!.add(munched.reduce((a, b) => a + b).data);
+        }
         yield progress;
       }
+      if (progress.result!.isEmpty) throw TetrioNoReplays();
       _cache.store(
           progress.result, DateTime.now().millisecondsSinceEpoch + 300000,
           id: id.toString());
@@ -659,18 +727,20 @@ class TetrioService extends DB {
           avaliable.take(prefs.getInt("munchLimit") ?? 10).toList();
       yield progress;
       for (BetaRecord record in progress.avaliable) {
-        List<MinomuncherRaw>? cached =
-            _cache.get(record.replayID, List<MinomuncherRaw>);
-        if (cached != null) {
-          progress.munched
-              .add(cached.firstWhere((element) => element.id == id));
-        } else {
-          List<MinomuncherRaw> raw =
-              await minomuncherPostReplay(await szyGetReplay(record.replayID));
-          progress.munched.add(raw.firstWhere((element) => element.id == id));
+        try {
+          final raw = await minomuncherReplayById(record.replayID);
+          final player = _findMinomuncherPlayer(raw, id);
+          if (player != null) progress.munched.add(player);
+        } on Exception catch (e, s) {
+          developer.log(
+              "Skipping unavailable replay ${record.replayID}: $e",
+              name: "services/tetrio_crud",
+              error: e,
+              stackTrace: s);
         }
         yield progress;
       }
+      if (progress.munched.isEmpty) throw TetrioNoReplays();
       progress.result = progress.munched.reduce((a, b) => a + b);
       _cache.store(
           progress.result, DateTime.now().millisecondsSinceEpoch + 300000,

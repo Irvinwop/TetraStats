@@ -66,6 +66,9 @@ describe("tracker database", () => {
     expect(summary.deep.pieces).toBe(120);
     expect(summary.deep.pps).toBe(2);
     expect(summary.deep.apm).toBe(60);
+    expect(database.getReplayAnalysis("replay-1")).toEqual({
+      player: { username: "Irvinwop" },
+    });
   });
 
   test("does not queue stub records for replay processing", () => {

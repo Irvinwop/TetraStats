@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 import {
   isFirstPartyProxyPath,
   proxyFirstPartyRequest,
+  replayAnalysisResponse,
   resolveFirstPartyUpstreamUrl,
 } from "../src/server.ts";
+import { TrackerDatabase } from "../src/database.ts";
 
 describe("local TetraStats links", () => {
   test("recognizes only the first-party proxy routes", () => {
@@ -65,5 +67,62 @@ describe("local TetraStats links", () => {
     expect(response.status).toBe(201);
     expect(response.headers.get("content-type")).toBe("application/json");
     expect(await response.json()).toEqual({ ok: true });
+  });
+
+  test("serves cached replay analysis without calling upstream", async () => {
+    const database = new TrackerDatabase(":memory:");
+    try {
+      database.upsertRecord({
+        id: "game-1",
+        replayId: "replay-1",
+        stream: "league",
+        playedAt: "2026-09-19T00:00:00.000Z",
+        mode: "league",
+        stub: false,
+        rawJson: "{}",
+      });
+      database.markProcessed(
+        "game-1",
+        "{}",
+        { player: { username: "Irvinwop" } },
+      );
+      let upstreamCalls = 0;
+
+      const response = await replayAnalysisResponse(
+        "replay-1",
+        database,
+        async () => {
+          upstreamCalls += 1;
+          return {};
+        },
+      );
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        player: { username: "Irvinwop" },
+      });
+      expect(upstreamCalls).toBe(0);
+    } finally {
+      database.close();
+    }
+  });
+
+  test("fetches replay analysis when it is not cached", async () => {
+    const database = new TrackerDatabase(":memory:");
+    try {
+      const response = await replayAnalysisResponse(
+        "replay-2",
+        database,
+        async (replayId) => ({ replayId, source: "upstream" }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        replayId: "replay-2",
+        source: "upstream",
+      });
+    } finally {
+      database.close();
+    }
   });
 });

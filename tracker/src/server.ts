@@ -3,7 +3,7 @@ import type { TrackerConfig } from "./config.ts";
 import type { TrackerDatabase } from "./database.ts";
 import { processReplay } from "./processor.ts";
 import type { IrvinTracker } from "./tracker.ts";
-import { ReplayProcessingError } from "./types.ts";
+import { ReplayProcessingError, TetrioHttpError } from "./types.ts";
 
 const publicDirectory = resolve(
   Bun.env.WEB_ROOT?.trim() ||
@@ -103,6 +103,32 @@ export async function proxyFirstPartyRequest(
   }
 }
 
+export async function replayAnalysisResponse(
+  replayId: string,
+  database: TrackerDatabase,
+  fetchAnalysis: (replayId: string) => Promise<Record<string, unknown>>,
+): Promise<Response> {
+  const cached = database.getReplayAnalysis(replayId);
+  if (cached) return json(cached);
+
+  try {
+    return json(await fetchAnalysis(replayId));
+  } catch (error) {
+    const status =
+      error instanceof TetrioHttpError &&
+      [400, 404, 422, 429].includes(error.status)
+        ? error.status
+        : 502;
+    return json(
+      {
+        error: "replay_analysis_unavailable",
+        message: error instanceof Error ? error.message : String(error),
+      },
+      status,
+    );
+  }
+}
+
 function contentType(path: string): string {
   return (
     {
@@ -184,6 +210,28 @@ export function startServer(
           tracker: tracker.status,
           stats: database.getSummary(),
         });
+      }
+
+      if (
+        url.pathname.startsWith("/api/replay-analysis/") &&
+        request.method === "GET"
+      ) {
+        let replayId: string;
+        try {
+          replayId = decodeURIComponent(
+            url.pathname.slice("/api/replay-analysis/".length),
+          );
+        } catch {
+          return json({ error: "invalid_replay_id" }, 400);
+        }
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(replayId)) {
+          return json({ error: "invalid_replay_id" }, 400);
+        }
+        return await replayAnalysisResponse(
+          replayId,
+          database,
+          (id) => tracker.client.getMinomuncherAnalysis(id),
+        );
       }
 
       if (url.pathname === "/api/games" && request.method === "GET") {

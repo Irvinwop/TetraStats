@@ -535,6 +535,20 @@ export class TrackerDatabase {
     };
   }
 
+  getReplayAnalysis(replayId: string): JsonObject | undefined {
+    const row = this.db
+      .query(`
+        SELECT analysis_json
+        FROM records
+        WHERE replay_id = ?
+          AND replay_status = 'processed'
+          AND analysis_json IS NOT NULL
+        LIMIT 1
+      `)
+      .get(replayId) as { analysis_json: string } | null;
+    return row ? parseJsonObject(row.analysis_json) : undefined;
+  }
+
   exportAll(): JsonObject {
     const records = this.db
       .query(`SELECT * FROM records ORDER BY played_at DESC`)

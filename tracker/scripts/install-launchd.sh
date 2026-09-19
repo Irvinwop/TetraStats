@@ -6,6 +6,7 @@ script_dir="${0:A:h}"
 repo_root="${script_dir:h:h}"
 runtime_root="$HOME/Library/Application Support/TetraStats"
 runtime_tracker="$runtime_root/tracker"
+runtime_web="$runtime_root/web"
 runner="$runtime_tracker/scripts/run-local.sh"
 launch_agents="$HOME/Library/LaunchAgents"
 plist="$launch_agents/$label.plist"
@@ -18,10 +19,16 @@ if [[ ! -x "$bun_bin" ]]; then
 fi
 
 mkdir -p "$launch_agents" "$log_dir" "$runtime_tracker"
+if [[ ! -f "$repo_root/build/web/index.html" ]]; then
+  echo "Missing build/web. Run 'flutter build web --release' first." >&2
+  exit 1
+fi
 rsync -a --delete \
   --exclude node_modules \
   --exclude test \
   "$repo_root/tracker/" "$runtime_tracker/"
+mkdir -p "$runtime_web"
+rsync -a --delete "$repo_root/build/web/" "$runtime_web/"
 if [[ -f "$repo_root/.env" ]]; then
   cp "$repo_root/.env" "$runtime_root/.env"
   chmod 600 "$runtime_root/.env"
@@ -48,11 +55,20 @@ plutil -insert EnvironmentVariables -dictionary "$plist"
 plutil -insert EnvironmentVariables.BUN_BIN -string "$bun_bin" "$plist"
 
 launchctl bootout "$domain/$label" 2>/dev/null || true
-launchctl bootstrap "$domain" "$plist"
+for attempt in {1..10}; do
+  if launchctl bootstrap "$domain" "$plist"; then
+    break
+  fi
+  if (( attempt == 10 )); then
+    echo "Could not bootstrap $label after $attempt attempts." >&2
+    exit 1
+  fi
+  sleep 1
+done
 launchctl enable "$domain/$label"
 launchctl kickstart -k "$domain/$label"
 
 echo "Installed and started $label"
-echo "Dashboard: http://127.0.0.1:8080"
+echo "TetraStats: http://127.0.0.1:8080"
 echo "Logs: $log_dir/tracker.out.log and $log_dir/tracker.err.log"
 echo "Runtime: $runtime_root"

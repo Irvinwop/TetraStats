@@ -21,6 +21,25 @@ late SharedPreferences prefs;
 late TetrioService teto;
 late GoRouter router;
 
+const String defaultPlayerUsername = "Irvinwop";
+const String defaultPlayerId = "678656e79f48dae00cefd822";
+
+Future<void> seedDefaultPlayerPreferences(
+    SharedPreferences preferences) async {
+  if (preferences.getString('player') == null) {
+    await preferences.setString('player', defaultPlayerUsername);
+  }
+  if (preferences.getString('playerID') == null) {
+    await preferences.setString('playerID', defaultPlayerId);
+  }
+  if (preferences.getBool('notFirstTime') == null) {
+    await preferences.setBool('notFirstTime', true);
+  }
+  if (preferences.getString('statsPreference') == null) {
+    await preferences.setString('statsPreference', 'minomuncher');
+  }
+}
+
 ThemeData theme = ThemeData(
     fontFamily: 'Eurostile Round',
     colorScheme: const ColorScheme.dark(
@@ -104,6 +123,7 @@ void main() async {
 
   packageInfo = await PackageInfo.fromPlatform();
   prefs = await SharedPreferences.getInstance();
+  await seedDefaultPlayerPreferences(prefs);
   teto = TetrioService();
 
   router = GoRouter(

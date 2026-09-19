@@ -1,11 +1,14 @@
-import { extname, join, normalize } from "node:path";
+import { extname, join, normalize, resolve } from "node:path";
 import type { TrackerConfig } from "./config.ts";
 import type { TrackerDatabase } from "./database.ts";
 import { processReplay } from "./processor.ts";
 import type { IrvinTracker } from "./tracker.ts";
 import { ReplayProcessingError } from "./types.ts";
 
-const publicDirectory = join(import.meta.dir, "..", "public");
+const publicDirectory = resolve(
+  Bun.env.WEB_ROOT?.trim() ||
+    join(import.meta.dir, "..", "..", "build", "web"),
+);
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, {
@@ -32,15 +35,24 @@ function contentType(path: string): string {
       ".json": "application/json; charset=utf-8",
       ".svg": "image/svg+xml",
       ".png": "image/png",
+      ".wasm": "application/wasm",
+      ".ttf": "font/ttf",
+      ".woff": "font/woff",
+      ".woff2": "font/woff2",
+      ".ico": "image/x-icon",
     }[extname(path)] ?? "application/octet-stream"
   );
 }
 
-function staticResponse(pathname: string): Response {
+async function staticResponse(pathname: string): Promise<Response> {
   const requested = pathname === "/" ? "index.html" : pathname.slice(1);
   const safePath = normalize(requested).replace(/^(\.\.(\/|\\|$))+/, "");
-  const path = join(publicDirectory, safePath);
-  const file = Bun.file(path);
+  let path = join(publicDirectory, safePath);
+  let file = Bun.file(path);
+  if (!(await file.exists())) {
+    path = join(publicDirectory, "index.html");
+    file = Bun.file(path);
+  }
   return new Response(file, {
     headers: {
       "Content-Type": contentType(path),
@@ -156,7 +168,7 @@ export function startServer(
         return json({ error: "not_found" }, 404);
       }
 
-      return staticResponse(url.pathname);
+      return await staticResponse(url.pathname);
     },
   });
 }

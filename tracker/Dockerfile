@@ -2,15 +2,16 @@ FROM oven/bun:1.3.10-alpine
 
 WORKDIR /app
 
-COPY package.json bun.lock ./
+COPY tracker/package.json tracker/bun.lock ./
 RUN bun install --frozen-lockfile --production
 
-COPY src ./src
-COPY public ./public
+COPY tracker/src ./src
+COPY build/web ./web
 
 ENV TRACKER_HOST=0.0.0.0 \
     PORT=8080 \
     DATA_DIR=/app/data \
+    WEB_ROOT=/app/web \
     TRACK_USERNAME=Irvinwop
 
 EXPOSE 8080

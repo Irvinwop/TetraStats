@@ -116,7 +116,7 @@ Map<Cards, String> cardsTitles = {
 late ScrollController controller;
 
 class _MainState extends State<MainView> with TickerProviderStateMixin {
-  String _searchFor = "6098518e3d5155e6ec429cdc";
+  String _searchFor = prefs.getString('playerID') ?? defaultPlayerId;
   final TextEditingController _searchController = TextEditingController();
   Timer _backgroundUpdate = Timer(const Duration(days: 365), (){});
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -125,7 +125,7 @@ class _MainState extends State<MainView> with TickerProviderStateMixin {
   void initState() {
     teto.open();
     controller = ScrollController();
-    changePlayer(prefs.getString('playerID')??_searchFor);
+    changePlayer(widget.player ?? _searchFor);
     if (prefs.getBool("updateInBG") == true) {
       _backgroundUpdate = Timer(Duration(minutes: 5), () {
         changePlayer(_searchFor);
@@ -565,7 +565,7 @@ class _SearchDrawerState extends State<SearchDrawer>  {
               final allPlayers = (snapshot.data != null)
                   ? snapshot.data as Map<String, String>
                   : <String, String>{};
-              allPlayers.remove(prefs.getString("playerID") ?? "6098518e3d5155e6ec429cdc"); // player from the home button will be delisted
+              allPlayers.remove(prefs.getString("playerID") ?? defaultPlayerId); // player from the home button will be delisted
               List<String> keys = allPlayers.keys.toList();
               return NestedScrollView(
                 headerSliverBuilder: (BuildContext context, bool value){
@@ -593,9 +593,9 @@ class _SearchDrawerState extends State<SearchDrawer>  {
                     SliverToBoxAdapter(
                       child: ListTile(
                       leading: Icon(Icons.home),
-                      title: Text(prefs.getString("player") ?? "dan63"),
+                      title: Text(prefs.getString("player") ?? defaultPlayerUsername),
                       onTap: () {
-                        widget.changePlayer(prefs.getString("playerID") ?? "6098518e3d5155e6ec429cdc");
+                        widget.changePlayer(prefs.getString("playerID") ?? defaultPlayerId);
                         Navigator.of(context).pop();
                       },
                     ),

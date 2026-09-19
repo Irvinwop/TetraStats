@@ -6,14 +6,28 @@ state in `./data/tetrastats.sqlite`.
 
 ## Start it
 
+### macOS
+
 ```sh
 cp .env.example .env
-docker compose up -d --build
+flutter build web --release
+./tracker/scripts/install-launchd.sh
 ```
 
-Open <http://127.0.0.1:8080>. The service performs an initial paginated
+Open <http://127.0.0.1:8080>. It is the normal TetraStats interface and opens
+directly on `Irvinwop`. The background service performs an initial paginated
 backfill, polls every five minutes, deduplicates records, and keeps retrying
 replays that fail temporarily.
+
+### Docker
+
+Build the Flutter interface before building the container:
+
+```sh
+cp .env.example .env
+flutter build web --release
+docker compose up -d --build
+```
 
 For the most reliable replay backfill, put a TETR.IO API token in `.env`:
 
@@ -56,6 +70,7 @@ flutter run --dart-define=GAME_PROCESSOR_URL=http://host:port/api/process-replay
 Docker is optional:
 
 ```sh
+flutter build web --release
 cd tracker
 bun install
 TRACK_USERNAME=Irvinwop bun run start

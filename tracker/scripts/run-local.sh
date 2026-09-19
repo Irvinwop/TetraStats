@@ -22,6 +22,11 @@ export MINOMUNCHER_URL="${MINOMUNCHER_URL:-https://minomuncher.com}"
 export TRACKER_HOST="${TRACKER_HOST:-127.0.0.1}"
 export PORT="${PORT:-8080}"
 export DATA_DIR="${DATA_DIR:-$repo_root/data}"
+default_web_root="$repo_root/web"
+if [[ -f "$repo_root/build/web/index.html" ]]; then
+  default_web_root="$repo_root/build/web"
+fi
+export WEB_ROOT="${WEB_ROOT:-$default_web_root}"
 
 bun_bin="${BUN_BIN:-}"
 if [[ -z "$bun_bin" ]]; then
